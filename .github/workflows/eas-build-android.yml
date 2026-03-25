@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'artifacts/swac-app/**'
   workflow_dispatch:
 
 jobs:
@@ -21,34 +19,16 @@ jobs:
         with:
           node-version: 22
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Install dependencies
-        run: pnpm install
-
       - name: Install EAS CLI
         run: npm install -g eas-cli@latest
 
-      - name: Verify EXPO_TOKEN
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          if [ -z "$EXPO_TOKEN" ]; then
-            echo "EXPO_TOKEN manquant"
-            exit 1
-          fi
-          echo "EXPO_TOKEN présent"
-
-      - name: Verify EAS auth
+      - name: Verify auth (eas whoami)
         working-directory: artifacts/swac-app
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas whoami
 
-      - name: Build APK Android
+      - name: Build APK Android (Preview)
         working-directory: artifacts/swac-app
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
