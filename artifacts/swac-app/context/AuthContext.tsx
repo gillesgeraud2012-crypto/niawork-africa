@@ -44,6 +44,13 @@ const USERS_KEY = "nia_users_db";
 const TOKEN_KEY = "nia_token";
 const USER_KEY = "nia_user";
 
+// Emails qui reçoivent automatiquement le rôle admin
+const ADMIN_EMAILS = [
+  "gilles.geraud2012@gmail.com",
+  "gillesgeraud201@gmail.com",
+  "admin@niawork.africa",
+];
+
 function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
@@ -105,6 +112,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Mot de passe incorrect");
     }
 
+    // Force admin role si email admin
+    if (ADMIN_EMAILS.includes(emailKey)) {
+      record.user.role = "admin";
+      users[emailKey] = record;
+      await saveUsers(users);
+    }
+
     const newToken = generateToken();
     await Promise.all([
       AsyncStorage.setItem(TOKEN_KEY, newToken),
@@ -133,17 +147,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Un compte existe déjà avec cet email");
       }
 
+      const isAdmin = ADMIN_EMAILS.includes(emailKey);
       const newUser: User = {
         id: generateId(),
-        email: email.toLowerCase().trim(),
+        email: emailKey,
         name: name.trim(),
-        role,
+        role: isAdmin ? "admin" : role,
         bio: null,
         skills: [],
         photoUrl: null,
-        points: 50,
-        level: 1,
-        badgeCount: 0,
+        points: isAdmin ? 9999 : 50,
+        level: isAdmin ? 10 : 1,
+        badgeCount: isAdmin ? 12 : 0,
         createdAt: new Date().toISOString(),
       };
 
