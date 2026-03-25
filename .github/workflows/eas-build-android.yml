@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'artifacts/swac-app/**'
   workflow_dispatch:
 
 jobs:
@@ -22,6 +24,10 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli@latest
 
+      - name: Install app dependencies
+        working-directory: artifacts/swac-app
+        run: npm install --legacy-peer-deps
+
       - name: Verify auth (eas whoami)
         working-directory: artifacts/swac-app
         env:
@@ -33,3 +39,6 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build --platform android --profile preview --non-interactive
+
+      - name: Done
+        run: echo "✅ APK disponible sur https://expo.dev"
