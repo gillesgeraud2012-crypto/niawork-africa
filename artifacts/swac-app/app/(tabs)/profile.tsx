@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
@@ -279,11 +280,30 @@ export default function ProfileScreen() {
             </View>
             <Text style={[styles.userName, { color: colors.text }]}>{user?.name ?? "Utilisateur"}</Text>
             <Text style={[styles.userEmail, { color: colors.textSecondary }]}>{user?.email ?? ""}</Text>
-            <View style={[styles.roleBadge, { backgroundColor: colors.primaryLight }]}>
-              <Text style={[styles.roleText, { color: colors.primary }]}>
-                {user?.role === "talent" ? "Talent" : user?.role === "artisan" ? "Artisan" : "Entreprise"}
+            <View style={[styles.roleBadge, { backgroundColor: user?.role === "admin" ? "rgba(239,68,68,0.15)" : colors.primaryLight }]}>
+              {user?.role === "admin" && <Feather name="shield" size={12} color="#EF4444" />}
+              <Text style={[styles.roleText, { color: user?.role === "admin" ? "#EF4444" : colors.primary }]}>
+                {user?.role === "admin" ? "Administrateur" : user?.role === "talent" ? "Talent" : user?.role === "artisan" ? "Artisan" : "Entreprise"}
               </Text>
             </View>
+
+            {/* Bouton accès admin */}
+            {user?.role === "admin" && (
+              <Pressable
+                onPress={() => router.push("/admin")}
+                style={styles.adminAccessBtn}
+              >
+                <LinearGradient
+                  colors={["#EF4444", "#7C4DFF"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <Feather name="shield" size={14} color="#fff" />
+                <Text style={styles.adminAccessText}>Back-Office Admin</Text>
+                <Feather name="chevron-right" size={14} color="#fff" />
+              </Pressable>
+            )}
           </View>
 
           <View style={styles.levelSection}>
@@ -420,8 +440,10 @@ const styles = StyleSheet.create({
   editAvatarBtn: { position: "absolute", bottom: -2, right: -2, width: 26, height: 26, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   userName: { fontSize: 22, fontFamily: "Inter_700Bold" },
   userEmail: { fontSize: 13, fontFamily: "Inter_400Regular" },
-  roleBadge: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20, marginTop: 4 },
+  roleBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20, marginTop: 4 },
   roleText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  adminAccessBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 20, marginTop: 8, overflow: "hidden" },
+  adminAccessText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff" },
   levelSection: { gap: 8 },
   levelRow: { flexDirection: "row", justifyContent: "space-between" },
   levelLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
