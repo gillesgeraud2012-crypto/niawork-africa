@@ -40,9 +40,30 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
-  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`
-  : "/api";
+const USERS_KEY = "nia_users_db";
+const TOKEN_KEY = "nia_token";
+const USER_KEY = "nia_user";
+
+function generateId() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function generateToken() {
+  return "local_" + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+}
+
+async function getUsers(): Promise<Record<string, { password: string; user: User }>> {
+  try {
+    const raw = await AsyncStorage.getItem(USERS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveUsers(users: Record<string, { password: string; user: User }>) {
+  await AsyncStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -53,8 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const restore = async () => {
       try {
         const [storedToken, storedUser] = await Promise.all([
-          AsyncStorage.getItem("nia_token"),
-          AsyncStorage.getItem("nia_user"),
+          AsyncStorage.getItem(TOKEN_KEY),
+          AsyncStorage.getItem(USER_KEY),
         ]);
         if (storedToken && storedUser) {
           setToken(storedToken);
@@ -69,50 +90,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await fetch(`${BASE_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || "Identifiants invalides");
+    if (!email.trim() || !password.trim()) {
+      throw new Error("Veuillez remplir tous les champs");
     }
-    const data = await res.json();
+
+    const users = await getUsers();
+    const emailKey = email.toLowerCase().trim();
+    const record = users[emailKey];
+
+    if (!record) {
+      throw new Error("Aucun compte trouvé avec cet email");
+    }
+    if (record.password !== password) {
+      throw new Error("Mot de passe incorrect");
+    }
+
+    const newToken = generateToken();
     await Promise.all([
-      AsyncStorage.setItem("nia_token", data.token),
-      AsyncStorage.setItem("nia_user", JSON.stringify(data.user)),
+      AsyncStorage.setItem(TOKEN_KEY, newToken),
+      AsyncStorage.setItem(USER_KEY, JSON.stringify(record.user)),
     ]);
-    setToken(data.token);
-    setUser(data.user);
+    setToken(newToken);
+    setUser(record.user);
   }, []);
 
   const register = useCallback(
     async (name: string, email: string, password: string, role: UserRole) => {
-      const res = await fetch(`${BASE_URL}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, role }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || "Erreur lors de la création du compte");
+      if (!name.trim() || !email.trim() || !password.trim()) {
+        throw new Error("Veuillez remplir tous les champs");
       }
-      const data = await res.json();
+      if (password.length < 6) {
+        throw new Error("Le mot de passe doit contenir au moins 6 caractères");
+      }
+      if (!email.includes("@")) {
+        throw new Error("Adresse email invalide");
+      }
+
+      const users = await getUsers();
+      const emailKey = email.toLowerCase().trim();
+
+      if (users[emailKey]) {
+        throw new Error("Un compte existe déjà avec cet email");
+      }
+
+      const newUser: User = {
+        id: generateId(),
+        email: email.toLowerCase().trim(),
+        name: name.trim(),
+        role,
+        bio: null,
+        skills: [],
+        photoUrl: null,
+        points: 50,
+        level: 1,
+        badgeCount: 0,
+        createdAt: new Date().toISOString(),
+      };
+
+      users[emailKey] = { password, user: newUser };
+      await saveUsers(users);
+
+      const newToken = generateToken();
       await Promise.all([
-        AsyncStorage.setItem("nia_token", data.token),
-        AsyncStorage.setItem("nia_user", JSON.stringify(data.user)),
+        AsyncStorage.setItem(TOKEN_KEY, newToken),
+        AsyncStorage.setItem(USER_KEY, JSON.stringify(newUser)),
       ]);
-      setToken(data.token);
-      setUser(data.user);
+      setToken(newToken);
+      setUser(newUser);
     },
     []
   );
 
   const logout = useCallback(async () => {
     await Promise.all([
-      AsyncStorage.removeItem("nia_token"),
-      AsyncStorage.removeItem("nia_user"),
+      AsyncStorage.removeItem(TOKEN_KEY),
+      AsyncStorage.removeItem(USER_KEY),
     ]);
     setToken(null);
     setUser(null);
@@ -122,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, ...updates };
-      AsyncStorage.setItem("nia_user", JSON.stringify(updated));
+      AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
       return updated;
     });
   }, []);
